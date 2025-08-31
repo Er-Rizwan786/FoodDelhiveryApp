@@ -1,0 +1,67 @@
+/* src/SignInPanel.css */
+
+/* The full-screen overlay */
+.panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end; /* Push the panel to the right */
+  visibility: hidden; /* Start hidden */
+  opacity: 0; /* Start transparent */
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Make the overlay visible when active */
+.panel-overlay.active {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* The side panel container */
+.panel-container {
+  width: 100%;
+  max-width: 450px; /* Panel width, adjust as needed */
+  height: 100%;
+  background-color: #fff;
+  transform: translateX(100%); /* Start off-screen to the right */
+  transition: transform 0.4s ease-out;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+  overflow-y: auto; /* Allow scrolling for the content */
+}
+
+/* Slide the panel in when the overlay is active */
+.panel-overlay.active .panel-container {
+  transform: translateX(0);
+}
+
+/* Close button for the panel */
+.panel-close {
+  position: sticky; /* Keep the button visible when scrolling */
+  top: 0;
+  left: 0;
+  background: none;
+  border: none;
+  font-size: 2.5em;
+  color: #333;
+  padding: 10px 20px;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+/* Content wrapper to add padding */
+.panel-content {
+  padding: 20px;
+}
+
+/* Media query for smaller screens */
+@media (max-width: 600px) {
+  .panel-container {
+    max-width: 90%;
+  }
+}
