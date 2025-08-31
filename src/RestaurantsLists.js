@@ -1,20 +1,34 @@
 // src/RestaurantList.js
 import React, { useState, useEffect, useMemo } from 'react';
-import { fetchRestaurants, extractRestaurants, extractSectionTitle } from './api';
+import { fetchRestaurants } from './api';
 import { useApp } from './context';
 import { NavLink } from 'react-router-dom';
 import './App.css';
 
-const DEFAULT_LAT = 12.9716; 
-const DEFAULT_LNG = 77.5946;
+const DEFAULT_LAT = 28.7041;
+const DEFAULT_LNG = 77.1025;
 
+// Individual restaurant card
 const RestaurantCard = ({ data }) => {
   const { name, cloudinaryImageId, avgRating, cuisines = [], areaName, sla = {}, id } = { ...data?.info };
   const { addToCart } = useApp();
+  const [isAdded, setIsAdded] = useState(false);
 
   const rupees = typeof data.info.costForTwo === 'string'
     ? data.info.costForTwo
     : Math.round((data.info.feeDetails?.amount || 19900) / 100);
+
+  const handleAddToCart = () => {
+    addToCart({
+      id: id,
+      name,
+      price: typeof rupees === 'number' ? rupees : undefined,
+      cloudinaryImageId,
+    });
+
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 1500);
+  };
 
   return (
     <div className="cards">
@@ -31,115 +45,116 @@ const RestaurantCard = ({ data }) => {
           <p>{areaName}</p>
         </div>
       </NavLink>
-      <button
-        onClick={() =>
-          addToCart({
-            id: id,
-            name,
-            price: typeof rupees === 'number' ? rupees : undefined,
-            cloudinaryImageId,
-          })
-        }
-      >
-        Add to Cart
-      </button>
     </div>
   );
 };
 
+// Restaurant list component
 const RestaurantList = () => {
   const [list, setList] = useState([]);
-  const [title, setTitle] = useState("Top restaurants near you");
+  const [area, setArea] = useState('');
   const [loading, setLoading] = useState(true);
-  const { searchTerm, setSearchTerm, userLocation } = useApp();
   const [error, setError] = useState(null);
+  const { userLocation } = useApp();
   
-  const [isRatingFilterActive, setIsRatingFilterActive] = useState(false);
+  // State for search and filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+      isRatingFilterActive: false,
+      isPureVegFilterActive: false,
+  });
+  
+  const toggleFilter = (filterName) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [filterName]: !prevFilters[filterName]
+    }));
+  };
 
+  // Fetch data when userLocation changes
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      
-      const latToFetch = userLocation?.lat ?? DEFAULT_LAT;
-      const lngToFetch = userLocation?.lng ?? DEFAULT_LNG;
-
       try {
-        const { restaurants, areaTitle } = await fetchRestaurants(latToFetch, lngToFetch);
+        const { restaurants, areaTitle } = await fetchRestaurants(
+          userLocation.lat || DEFAULT_LAT,
+          userLocation.lng || DEFAULT_LNG
+        );
         setList(restaurants);
-        setTitle(areaTitle);
-        if (restaurants.length === 0) {
-          setError("Sorry, no restaurants found in this area.");
-        }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError("Failed to load restaurants. Please check your internet connection or try again later.");
+        setArea(areaTitle);
+      } catch (error) {
+        console.error('Error fetching restaurants:', error);
+        setError("Failed to fetch restaurants. Please try again.");
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [userLocation]);
 
-  const filteredList = useMemo(() => {
-    const q = (searchTerm || '').toLowerCase().trim();
-    let currentList = list;
+  // Use useMemo for filtering logic
+  const filteredRestaurants = useMemo(() => {
+      let currentList = list;
 
-    if (q) {
-      currentList = currentList.filter(r => r?.info?.name?.toLowerCase().includes(q));
-    }
-    
-    if (isRatingFilterActive) {
-      currentList = currentList.filter(r => r?.info?.avgRating >= 4.0);
-    }
+      // Apply search filter
+      if (searchTerm) {
+          currentList = currentList.filter(r => 
+              r?.info?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+      }
 
-    return currentList;
-  }, [list, searchTerm, isRatingFilterActive]);
+      // Apply rating filter
+      if (filters.isRatingFilterActive) {
+          currentList = currentList.filter(r => r?.info?.avgRating >= 4.0);
+      }
+      
+      // Apply pure veg filter
+      if (filters.isPureVegFilterActive) {
+          currentList = currentList.filter(r => r?.info?.veg);
+      }
+      
+      return currentList;
+  }, [list, searchTerm, filters]);
+
 
   if (loading) return <p>Loading restaurants...</p>;
-
-  if (error) {
-    return (
-      <div className="restaurantslist-container" style={{ textAlign: 'center' }}>
-        <h2>Error</h2>
-        <p style={{ color: 'red' }}>{error}</p>
-      </div>
-    );
-  }
+  if (error) return <p style={{color: 'red'}}>{error}</p>;
 
   return (
     <div className="restaurantslist-container">
-      <h2>{title || "Top restaurants near you"}</h2>
-      <div className="search-container-body">
-        <input
-          type="text"
-          placeholder="Search restaurants..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input-body"
-        />
+      <h2>{area || 'All restaurants'}</h2>
+
+      <input
+        type="text"
+        placeholder="Search restaurants..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="search-input-body"
+      />
+
+      <div>
         <ul className="restaurantslist">
           <li className="restaurantslists">Filter</li>
-          <li className="restaurantslists">Sort By</li>
-          
           <li 
-            className={`restaurantslists ${isRatingFilterActive ? 'active-filter' : ''}`}
-            onClick={() => setIsRatingFilterActive(!isRatingFilterActive)}
+            className={`restaurantslists ${filters.isRatingFilterActive ? 'active-filter' : ''}`}
+            onClick={() => toggleFilter('isRatingFilterActive')}
           >
             Rating 4.0+
           </li>
-          
-          <li className="restaurantslists">Fast Delivery</li>
-          <li className="restaurantslists">Pure Veg</li>
-          <li className="restaurantslists">Offers</li>
-          <li className="restaurantslists">Rs 300-600</li>
-          <li className="restaurantslists">Less than 300</li>
+          <li 
+            className={`restaurantslists ${filters.isPureVegFilterActive ? 'active-filter' : ''}`}
+            onClick={() => toggleFilter('isPureVegFilterActive')}
+          >
+            Pure Veg
+          </li>
         </ul>
       </div>
+
       <div className="cardcontainer">
-        {filteredList.length > 0 ? (
-          filteredList.map((each) => (
+        {filteredRestaurants.length > 0 ? (
+          filteredRestaurants.map((each) => (
             <RestaurantCard data={each} key={each?.info?.id} />
           ))
         ) : (

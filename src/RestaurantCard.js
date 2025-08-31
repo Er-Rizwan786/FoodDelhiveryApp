@@ -49,30 +49,42 @@ const RestaurantCard = ({ data }) => {
           <p>{areaName}</p>
         </div>
       </NavLink>
-      <button
-        onClick={handleAddToCart}
-        className={isAdded ? 'added-to-cart-btn' : ''}
-      >
-        {isAdded ? 'Added!' : 'Add to Cart'}
-      </button>
     </div>
   );
 };
 
-
-// The list component. This is the "RestaurantCard" you had, renamed for clarity.
 const RestaurantList = () => {
   const [list, setList] = useState([]);
   const [area, setArea] = useState('');
   const [loading, setLoading] = useState(true);
   const { searchTerm, setSearchTerm, userLocation } = useApp();
-  const [rawSearch, setRawSearch] = useState('');
+  const [rawSearch, setRawSearch] = useState("");
+  const [filteredRestaurants, setFilteredRestaurants] = useState([]);
+
+
   
-  // Debounce input into global searchTerm
-  useEffect(() => {
-    const id = setTimeout(() => setSearchTerm(rawSearch), 300);
-    return () => clearTimeout(id);
-  }, [rawSearch, setSearchTerm]);
+  // // Debounce input into global searchTerm
+  // useEffect(() => {
+  //   const id = setTimeout(() => setSearchTerm(rawSearch), 300);
+  //   return () => clearTimeout(id);
+  // }, [rawSearch, setSearchTerm]);
+
+const handleSearchChange = (e) => {
+  const value = e.target.value.toLowerCase();
+  setRawSearch(value);
+
+  const filtered = list.filter((restaurant) => {
+    const nameMatch = restaurant?.info?.name?.toLowerCase().includes(value);
+    const cuisines = restaurant?.info?.cuisines || [];
+    const foodMatch = cuisines.some((item) =>
+      item.toLowerCase().includes(value)
+    );
+    return nameMatch || foodMatch;
+  });
+
+  setFilteredRestaurants(filtered);
+};
+
 
   const fetchData = async () => {
     setLoading(true);
@@ -108,8 +120,8 @@ const RestaurantList = () => {
         type="text"
         placeholder="Search restaurants..."
         value={rawSearch}
-        onChange={(e) => setRawSearch(e.target.value)}
-        className="search-input-bar"
+        onChange={handleSearchChange}
+        className="search-input-body"
       />
       <div>
         <ul className="restaurantslist">
